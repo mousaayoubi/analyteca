@@ -1,6 +1,6 @@
 # Analyteca
 
-Headless Magento Analytics & Operations Dashboard (Portfolio Project)
+Headless Magento Analytics & Operations Dashboard
 
 Monorepo structure:
 
