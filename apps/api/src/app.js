@@ -4,6 +4,8 @@ import { errorHandler } from "./middleware/error.js";
 import { query } from "./db/index.js";
 import { env } from "./config/env.js";
 import authRoutes from "./modules/auth/auth.routes.js";
+import metricsRoutes from "./modules/metrics/metrics.routes.js";
+import syncRoutes from "./modules/sync/sync.routes.js";
 
 const app = express();
 
@@ -11,6 +13,8 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/auth", authRoutes);
+app.use("/metrics", metricsRoutes);
+app.use("/sync", syncRoutes);
 
 app.get("/health", (req, res) => {
 	res.json({ status: "ok" });

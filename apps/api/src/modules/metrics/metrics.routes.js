@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuh } from "../../middleware/auth.js";
+import { requireAuth } from "../../middleware/auth.js";
 import { getSummary } from "./metrics.service.js";
 
 const router = Router();

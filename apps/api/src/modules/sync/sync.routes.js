@@ -20,7 +20,7 @@ const rows = await query(
 res.json({ last: rows[0] || null });
 });
 
-router.post("/run", requireAuth, requireAdmin, async (req, res) => }
+router.post("/run", requireAuth, requireAdmin, async (req, res) => {
 const { from, to } = req.body || {};
 const result = await runSync({ from, to, triggeredBy: req.user.email });
 res.json(result);
