@@ -3,11 +3,14 @@ import cors from "cors";
 import { errorHandler } from "./middleware/error.js";
 import { query } from "./db/index.js";
 import { env } from "./config/env.js";
+import authRoutes from "./modules/auth/auth.routes.js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+app.use("/auth", authRoutes);
 
 app.get("/health", (req, res) => {
 	res.json({ status: "ok" });
