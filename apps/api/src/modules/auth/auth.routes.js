@@ -4,13 +4,15 @@ import jwt from "jsonwebtoken";
 import { env } from "../../config/env.js";
 import { query } from "../../db/index.js";
 import { requireAuth } from "../../middleware/auth.js";
+import { validate } from "../../middleware/validate.js";
+import { loginBodySchema } from "./auth.schemas.js";
 
 const router = Router();
 
 /**
  * POST /auth/login
  */
-router.post("/login", async (req, res) => {
+router.post("/login", validate({ body: loginBodySchema }), async (req, res) => {
   try {
     const { email, password } = req.body || {};
 

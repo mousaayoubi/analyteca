@@ -6,11 +6,16 @@ import { env } from "./config/env.js";
 import authRoutes from "./modules/auth/auth.routes.js";
 import metricsRoutes from "./modules/metrics/metrics.routes.js";
 import syncRoutes from "./modules/sync/sync.routes.js";
+import { requestId } from "./middleware/requestId.js";
+import { loggerHttp } from "./middleware/loggerHttp.js";
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+app.use(requestId);
+app.use(loggerHttp);
 
 app.use("/auth", authRoutes);
 app.use("/metrics", metricsRoutes);
