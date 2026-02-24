@@ -8,6 +8,7 @@ import metricsRoutes from "./modules/metrics/metrics.routes.js";
 import syncRoutes from "./modules/sync/sync.routes.js";
 import { requestId } from "./middleware/requestId.js";
 import { loggerHttp } from "./middleware/loggerHttp.js";
+import magentoRoutes from "./modules/magento/magento.routes.js";
 
 const app = express();
 
@@ -20,6 +21,7 @@ app.use(loggerHttp);
 app.use("/auth", authRoutes);
 app.use("/metrics", metricsRoutes);
 app.use("/sync", syncRoutes);
+app.use("/magento", magentoRoutes);
 
 app.get("/health", (req, res) => {
 	res.json({ status: "ok" });

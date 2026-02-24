@@ -51,7 +51,10 @@ export function errorHandler(err, req, res, _next) {
     error: status === 500 ? "Internal Server Error" : (err.message || "Error"),
     requestId: req.requestId,
     ...(process.env.NODE_ENV !== "production" && status >= 500
-      ? { message: err.message }
+      ? { message: err.message,
+      	  details: err.details,
+	  url: err.url
+      }
       : {}),
   });
 }

@@ -1,22 +1,28 @@
-import dotenv from "dotenv";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-dotenv.config({ path: path.resolve(__dirname, "../../.env") });
-
-function must(name) {
+function requireEnv(name) {
   const v = process.env[name];
   if (!v) throw new Error(`Missing env var: ${name}`);
   return v;
 }
 
+function optionalEnv(name, fallback = "") {
+  const v = process.env[name];
+  return v ? v : fallback;
+}
+
 export const env = {
-  PORT: Number(process.env.PORT || 3000),
-  JWT_SECRET: process.env.JWT_SECRET || "dev_secret",
-  DATABASE_URL: must("DATABASE_URL"),
-  MAGENTO_BASE_URL: must("MAGENTO_BASE_URL"),
-  MAGENTO_TOKEN: must("MAGENTO_TOKEN"),
+  NODE_ENV: optionalEnv("NODE_ENV", "development"),
+  PORT: Number(optionalEnv("PORT", "3000")),
+
+  JWT_SECRET: requireEnv("JWT_SECRET"),
+  DATABASE_URL: requireEnv("DATABASE_URL"),
+
+  // Magento
+  MAGENTO_BASE_URL: requireEnv("MAGENTO_BASE_URL"),
+
+  // Path B: admin token flow (required)
+  MAGENTO_ADMIN_USER: requireEnv("MAGENTO_ADMIN_USER"),
+  MAGENTO_ADMIN_PASS: requireEnv("MAGENTO_ADMIN_PASS"),
+
+  // Optional now (only needed if you ever switch back to integration token)
+  MAGENTO_TOKEN: optionalEnv("MAGENTO_TOKEN", ""),
 };
