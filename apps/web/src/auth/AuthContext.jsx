@@ -17,7 +17,7 @@ export function AuthProvider({ children }) {
 		else localStorage.removeItem(LS_TOKEN);
 	}, [token]);
 
-	useEfect(() => {
+	useEffect(() => {
 		if (user) localStorage.setItem(LS_USER, JSON.stringify(user));
 		else localStorage.removeItem(LS_USER);
 	}, [user]);
@@ -45,7 +45,7 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-	const ctx = useContext(AuthCOntext);
-	if (!ctx_ throw new Error("useAuth must be used inside <AuthProvider>");
+	const ctx = useContext(AuthContext);
+	if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
 		return ctx;
 }
