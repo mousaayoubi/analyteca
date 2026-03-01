@@ -29,56 +29,70 @@ export default function Login() {
 	}
 
 	return (
-		<div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900/40 p-6 shadow-lg">
-        <div className="mb-6">
-          <div className="text-sm text-slate-400">Analyteca</div>
-          <h1 className="text-2xl font-semibold">Sign in</h1>
-          <p className="text-slate-400 mt-1 text-sm">
-            Use your Analyteca API credentials.
-          </p>
-        </div>
+		<div className="min-h-screen bg-gradient-to-br from-slate-300 to-slate-500 flex items-center justify-center px-4">
+      {/* subtle brand glow background */}
+      <div className="pointer-events-none absolute inset-0 opacity-40">
+        <div className="absolute -top-24 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-brand-400 blur-3xl" />
+        <div className="absolute top-40 left-1/3 h-72 w-72 rounded-full bg-brandBlue-500 blur-3xl" />
+      </div>
 
-        {err ? (
-          <div className="mb-4 rounded-lg border border-red-900/60 bg-red-950/40 px-3 py-2 text-sm text-red-200">
-            {err}
-          </div>
-        ) : null}
-
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm text-slate-300">Email</label>
-            <input
-              className="mt-1 w-full rounded-lg bg-slate-950/60 border border-slate-800 px-3 py-2 outline-none focus:border-slate-600"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+      <div className="relative w-full max-w-md rounded-2xl border border-slate-300 bg-white shadow-xl">
+        <div className="p-7">
+          {/* Logo */}
+          <div className="flex items-center justify-center">
+            <img
+              src="/analyteca-logo.png"
+              alt="Analyteca"
+              className="h-60 w-auto drop-shadow-lg"
             />
           </div>
 
-          <div>
-            <label className="text-sm text-slate-300">Password</label>
-            <input
-              className="mt-1 w-full rounded-lg bg-slate-950/60 border border-slate-800 px-3 py-2 outline-none focus:border-slate-600"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-            />
+          <div className="mt-5 text-center">
+            <h1 className="text-3xl font-semibold tracking-tight text-white">
+              Sign in
+            </h1>
+            <p className="text-l font-semibold text-slate-900">
+              Use your Analyteca API credentials.
+            </p>
           </div>
 
-          <button
-            disabled={loading}
-            className="w-full rounded-lg bg-white text-slate-900 font-medium py-2 hover:bg-slate-200 disabled:opacity-60"
-          >
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+          <form className="mt-6 space-y-4">
+            <div>
+              <label className="text-3xl font-semibold text-slate-500">Email</label>
+              <input
+                className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white placeholder:text-slate-500 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/30"
+                placeholder="admin@analyteca.com"
+                // value=...
+                // onChange=...
+              />
+            </div>
 
-        <div className="mt-6 text-xs text-slate-500">
-          Tip: your Node API must be running on <code>VITE_API_BASE_URL</code>.
+            <div>
+              <label className="text-3xl font-semibold text-slate-500">Password</label>
+              <input
+                type="password"
+                className="mt-2 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-white placeholder:text-slate-500 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-400/30"
+                placeholder="••••••••"
+                // value=...
+                // onChange=...
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full rounded-xl bg-gradient-to-r from-brandBlue-600 to-brand-400 py-3 font-semibold text-slate-950 shadow-lg shadow-brand-400/20 hover:opacity-95 disabled:opacity-60"
+            >
+              Sign in
+            </button>
+
+            <p className="pt-2 text-xs text-slate-500">
+		<div className="text-center">
+              <span className="text-center text-brand-300">Analyteca © 2026 </span>
+		</div>
+            </p>
+          </form>
         </div>
       </div>
     </div>
-	);
+  );
 }
