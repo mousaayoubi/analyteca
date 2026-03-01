@@ -33,6 +33,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-slate-100 flex items-center justify-center px-4">
+	  <title>Analyteca | Login</title>
       <div className="w-full max-w-md rounded-3xl bg-white shadow-2xl border border-slate-200 px-10 py-12">
         <div className="flex justify-center mb-6">
           {/* Put your logo at: apps/web/public/analyteca-logo.png */}

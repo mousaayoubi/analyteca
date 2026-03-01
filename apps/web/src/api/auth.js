@@ -1,9 +1,8 @@
 import { apiFetch } from "./http";
 
-export function loginApi(email, password) {
-	return apiFetch("/auth/login", {
-		method: "POST",
-		auth: false,
-		body: { email, password },
-	});
+export async function loginRequest({ email, password }) {
+  return apiFetch("/auth/login", {
+    method: "POST",
+    body: { email, password },
+  });
 }

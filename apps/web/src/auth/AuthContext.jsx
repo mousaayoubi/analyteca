@@ -1,51 +1,51 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";import { loginApi } from "../api/auth";
+// apps/web/src/auth/AuthContext.jsx
+import React, { createContext, useContext, useMemo, useState } from "react";
+import { loginRequest } from "../api/auth";
 
 const AuthContext = createContext(null);
 
-const LS_TOKEN = "token";
-const LS_USER = "user";
+const LS_TOKEN_KEY = "analyteca_token";
+const LS_USER_KEY = "analyteca_user";
 
 export function AuthProvider({ children }) {
-	const [token, setToken] = useState(() => localStorage.getItem(LS_TOKEN) || "");
-	const [user, setUser] = useState(() => {
-		const raw = localStorage.getItem(LS_USER);
-		return raw ? JSON.parse(raw): null;
-	});
+  const [token, setToken] = useState(() => localStorage.getItem(LS_TOKEN_KEY) || "");
+  const [user, setUser] = useState(() => {
+    const raw = localStorage.getItem(LS_USER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  });
 
-	useEffect(() => {
-		if (token) localStorage.setItem(LS_TOKEN, token);
-		else localStorage.removeItem(LS_TOKEN);
-	}, [token]);
+  const isAuthenticated = !!token;
 
-	useEffect(() => {
-		if (user) localStorage.setItem(LS_USER, JSON.stringify(user));
-		else localStorage.removeItem(LS_USER);
-	}, [user]);
+  async function login({ email, password }) {
+    const data = await loginRequest({ email, password }); // { token, user }
+    if (!data?.token) throw new Error("Login failed: token missing");
 
-	const isAuthed = !!token;
+    setToken(data.token);
+    setUser(data.user || null);
 
-	async function login(email, password) {
-		const data = await loginApi(email, password);
-		setToken(data.token);
-		setUser(data.user);
-		return data;
-	}
+    localStorage.setItem(LS_TOKEN_KEY, data.token);
+    localStorage.setItem(LS_USER_KEY, JSON.stringify(data.user || null));
 
-	function logout() {
-		setToken("");
-		setUser(null);
-	}
+    return data;
+  }
 
-	const value = useMemo(
-	() => ({ token, user, isAuthed, login, logout }),
-		[token, user, isAuthed]
-	);
+  function logout() {
+    setToken("");
+    setUser(null);
+    localStorage.removeItem(LS_TOKEN_KEY);
+    localStorage.removeItem(LS_USER_KEY);
+  }
 
-	return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const value = useMemo(
+    () => ({ token, user, isAuthenticated, login, logout }),
+    [token, user, isAuthenticated]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-	const ctx = useContext(AuthContext);
-	if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
-		return ctx;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider />");
+  return ctx;
 }
