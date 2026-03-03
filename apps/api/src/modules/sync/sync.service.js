@@ -21,57 +21,69 @@ function clampRange({ from, to }) {
 }
 
 /**
+ * Add N days to an ISO yyyy-mm-dd date (UTC-safe).
+ */
+function addDaysIso(isoDate, days) {
+  const d = new Date(`${isoDate}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/**
  * Main sync runner
  */
 export async function runSync({ from, to }) {
   const { fromIso, toIso } = clampRange({ from, to });
 
+  // Use an EXCLUSIVE end date for fetching orders to avoid "midnight" truncation
+  // Example: toIso=2026-03-03 => fetch until 2026-03-04 00:00:00 (exclusive)
+  const toIsoExclusive = addDaysIso(toIso, 1);
+
   // 1) Create sync_run record
   const runRows = await query(
-  `
-  INSERT INTO sync_runs (range_from, range_to, status)
-  VALUES ($1::date, $2::date, 'running')
-  RETURNING id
-  `,
-  [fromIso, toIso]
-);
+    `
+    INSERT INTO sync_runs (range_from, range_to, status)
+    VALUES ($1::date, $2::date, 'running')
+    RETURNING id
+    `,
+    [fromIso, toIso]
+  );
 
-const runId = runRows[0].id;
+  const runId = runRows[0].id;
 
   try {
-    // 2) Prepare daily buckets
+    // 2) Prepare daily buckets (inclusive dayMap: fromIso -> toIso)
     const dayMap = new Map();
 
-    const start = new Date(fromIso + "T00:00:00Z");
-    const end = new Date(toIso + "T00:00:00Z");
+    const start = new Date(`${fromIso}T00:00:00Z`);
+    const end = new Date(`${toIso}T00:00:00Z`);
 
     for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
       const key = d.toISOString().slice(0, 10);
       dayMap.set(key, { revenue: 0, orders: 0 });
     }
 
-    // 3) Fetch Magento orders for range
+    // 3) Fetch Magento orders for range (exclusive end)
     const orders = await fetchOrdersByCreatedAt({
       fromIso,
-      toIso,
+      toIso: toIsoExclusive,
       pageSize: 100,
     });
 
-    const allowedStatuses = new Set(["processing", "complete"]);
+    // "Completed" for now = complete + closed (based on your export)
+    const allowedStatuses = new Set(["complete", "closed"]);
 
     for (const o of orders) {
-      if (!allowedStatuses.has(o.status)) continue;
+      const status = String(o.status || "").toLowerCase();
+      if (!allowedStatuses.has(status)) continue;
 
-      const day = String(o.created_at).slice(0, 10);
+      const day = String(o.created_at || "").slice(0, 10);
       if (!dayMap.has(day)) continue;
 
       const bucket = dayMap.get(day);
 
-      const amount = Number(
-        o.base_grand_total ?? o.grand_total ?? 0
-      );
-
-      bucket.revenue += amount;
+      const amount = Number(o.base_grand_total ?? o.grand_total ?? 0);
+      bucket.revenue += Number.isFinite(amount) ? amount : 0;
       bucket.orders += 1;
     }
 
@@ -80,9 +92,7 @@ const runId = runRows[0].id;
       const revenue = Number(b.revenue.toFixed(2));
       const ordersCount = b.orders;
       const aov =
-        ordersCount > 0
-          ? Number((revenue / ordersCount).toFixed(2))
-          : 0;
+        ordersCount > 0 ? Number((revenue / ordersCount).toFixed(2)) : 0;
 
       await query(
         `

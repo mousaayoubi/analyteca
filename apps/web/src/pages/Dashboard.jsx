@@ -20,6 +20,20 @@ function getDefaultRange() {
   return { from: iso(from), to: iso(to) };
 }
 
+// ✅ Calendar days in selected range (inclusive)
+function daysInRangeInclusive(fromIso, toIso) {
+  if (!fromIso || !toIso) return 0;
+
+  // Normalize to UTC midnight to avoid timezone/DST issues
+  const from = new Date(`${fromIso}T00:00:00Z`);
+  const to = new Date(`${toIso}T00:00:00Z`);
+
+  const diffMs = to.getTime() - from.getTime();
+  const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+
+  return diffDays + 1; // inclusive
+}
+
 export default function Dashboard() {
   const { token, user, logout } = useAuth();
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
@@ -52,13 +66,24 @@ export default function Dashboard() {
 
   const totals = summary?.totals || { revenue: 0, orders: 0, aov: 0, refunds: 0 };
 
+  // ✅ Use backend range if provided, otherwise local range
+  const displayFrom = summary?.range?.from || range.from;
+  const displayTo = summary?.range?.to || range.to;
+
+  // ✅ Calendar day count, not "days with orders"
+  const daysInRange = daysInRangeInclusive(displayFrom, displayTo);
+
   return (
     <div className="min-h-screen bg-slate-100">
       {/* Top bar */}
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <img src="/assets/analyteca-logo.png" alt="Analyteca" className="h-9 w-9 object-contain" />
+            <img
+              src="/assets/analyteca-logo.png"
+              alt="Analyteca"
+              className="h-9 w-9 object-contain"
+            />
             <div>
               <div className="text-lg font-semibold text-slate-900">Analyteca</div>
               <div className="text-sm text-slate-500">Magento Analytics Dashboard</div>
@@ -139,7 +164,9 @@ export default function Dashboard() {
           </div>
 
           {err ? (
-            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{err}</div>
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {err}
+            </div>
           ) : null}
 
           <div className="mt-6 grid gap-4 md:grid-cols-4">
@@ -150,10 +177,10 @@ export default function Dashboard() {
           </div>
 
           <div className="mt-6 text-sm text-slate-500">
-            Range: <span className="font-medium text-slate-700">{summary?.range?.from || range.from}</span> →{" "}
-            <span className="font-medium text-slate-700">{summary?.range?.to || range.to}</span>
+            Range: <span className="font-medium text-slate-700">{displayFrom}</span> →{" "}
+            <span className="font-medium text-slate-700">{displayTo}</span>
             {" · "}
-            Days: <span className="font-medium text-slate-700">{summary?.daily?.length ?? "—"}</span>
+            Days: <span className="font-medium text-slate-700">{loading ? "—" : daysInRange}</span>
           </div>
         </div>
       </main>

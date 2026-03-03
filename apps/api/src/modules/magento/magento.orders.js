@@ -1,11 +1,16 @@
 import { magentoGet } from "./magento.client.js";
 
+/**
+ * Fetch ALL Magento orders within [fromIso, toIso] inclusive.
+ * Uses created_at gteq/lteq and paginates until all items are fetched.
+ *
+ * fromIso/toIso: yyyy-mm-dd
+ */
 export async function fetchOrdersByCreatedAt({ fromIso, toIso, pageSize = 100 }) {
   const fromTs = `${fromIso} 00:00:00`;
   const toTs = `${toIso} 23:59:59`;
 
   let currentPage = 1;
-  let totalCount = null;
   const all = [];
 
   while (true) {
@@ -13,23 +18,22 @@ export async function fetchOrdersByCreatedAt({ fromIso, toIso, pageSize = 100 })
       "searchCriteria[currentPage]": currentPage,
       "searchCriteria[pageSize]": pageSize,
 
+      // created_at >= fromTs
       "searchCriteria[filterGroups][0][filters][0][field]": "created_at",
       "searchCriteria[filterGroups][0][filters][0][value]": fromTs,
-      "searchCriteria[filterGroups][0][filters][0][conditionType]": "from",
+      "searchCriteria[filterGroups][0][filters][0][conditionType]": "gteq",
 
+      // created_at <= toTs
       "searchCriteria[filterGroups][0][filters][1][field]": "created_at",
       "searchCriteria[filterGroups][0][filters][1][value]": toTs,
-      "searchCriteria[filterGroups][0][filters][1][conditionType]": "to",
+      "searchCriteria[filterGroups][0][filters][1][conditionType]": "lteq",
     });
 
-    const items = data.items || [];
-    if (totalCount === null) totalCount = data.total_count ?? items.length;
-
+    const items = data?.items || [];
     all.push(...items);
 
-    const fetched = currentPage * pageSize;
-    if (items.length === 0) break;
-    if (fetched >= totalCount) break;
+    // stop if last page
+    if (items.length < pageSize) break;
 
     currentPage += 1;
   }
