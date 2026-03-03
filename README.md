@@ -1,5 +1,6 @@
 # Analyteca
 
+
 Headless Magento Analytics & Operations Dashboard
 
 Monorepo structure:
