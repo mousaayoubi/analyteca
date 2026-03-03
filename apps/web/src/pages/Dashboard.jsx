@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchSummary } from "../api/metrics";
 import { getApiBaseUrl } from "../api/http";
 import { useAuth } from "../auth/AuthContext";
+import { fetchLastSync, runSyncNow } from "../api/sync"; // ✅ NEW
 
 function formatMoney(n) {
   const v = Number(n || 0);
@@ -20,18 +21,21 @@ function getDefaultRange() {
   return { from: iso(from), to: iso(to) };
 }
 
-// ✅ Calendar days in selected range (inclusive)
+// Calendar days in selected range (inclusive)
 function daysInRangeInclusive(fromIso, toIso) {
   if (!fromIso || !toIso) return 0;
-
-  // Normalize to UTC midnight to avoid timezone/DST issues
   const from = new Date(`${fromIso}T00:00:00Z`);
   const to = new Date(`${toIso}T00:00:00Z`);
-
   const diffMs = to.getTime() - from.getTime();
   const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+  return diffDays + 1;
+}
 
-  return diffDays + 1; // inclusive
+function formatDateTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleString();
 }
 
 export default function Dashboard() {
@@ -39,12 +43,46 @@ export default function Dashboard() {
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
 
   const [range, setRange] = useState(getDefaultRange);
+
   const [summary, setSummary] = useState(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
+  // ✅ NEW: last sync UI state
+  const [lastSyncAt, setLastSyncAt] = useState(null);
+  const [lastSyncLoading, setLastSyncLoading] = useState(false);
+
+  // ✅ NEW: sync button UI state
+  const [syncing, setSyncing] = useState(false);
+  const [syncErr, setSyncErr] = useState("");
+
+  async function refreshSummary(currentRange = range) {
+    setLoading(true);
+    setErr("");
+    try {
+      const data = await fetchSummary({ token, from: currentRange.from, to: currentRange.to });
+      setSummary(data);
+    } catch (e) {
+      setErr(e?.message || "Failed to load summary");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refreshLastSync() {
+    setLastSyncLoading(true);
+    try {
+      const data = await fetchLastSync({ token });
+      setLastSyncAt(data?.lastSyncAt || null);
+    } finally {
+      setLastSyncLoading(false);
+    }
+  }
+
+  // initial + when range changes
   useEffect(() => {
     let alive = true;
+
     setLoading(true);
     setErr("");
 
@@ -64,13 +102,33 @@ export default function Dashboard() {
     };
   }, [token, range.from, range.to]);
 
-  const totals = summary?.totals || { revenue: 0, orders: 0, aov: 0, refunds: 0 };
+  // ✅ load last sync on mount / token change
+  useEffect(() => {
+    if (!token) return;
+    refreshLastSync();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token]);
 
-  // ✅ Use backend range if provided, otherwise local range
+  async function onSyncNow() {
+    setSyncErr("");
+    setSyncing(true);
+    try {
+      // run sync for the CURRENT selected range
+      await runSyncNow({ token, from: range.from, to: range.to });
+
+      // after sync: refresh last synced + summary
+      await refreshLastSync();
+      await refreshSummary(range);
+    } catch (e) {
+      setSyncErr(e?.message || "Sync failed");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  const totals = summary?.totals || { revenue: 0, orders: 0, aov: 0, refunds: 0 };
   const displayFrom = summary?.range?.from || range.from;
   const displayTo = summary?.range?.to || range.to;
-
-  // ✅ Calendar day count, not "days with orders"
   const daysInRange = daysInRangeInclusive(displayFrom, displayTo);
 
   return (
@@ -79,11 +137,7 @@ export default function Dashboard() {
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <img
-              src="/assets/analyteca-logo.png"
-              alt="Analyteca"
-              className="h-9 w-9 object-contain"
-            />
+            <img src="/assets/analyteca-logo.png" alt="Analyteca" className="h-9 w-9 object-contain" />
             <div>
               <div className="text-lg font-semibold text-slate-900">Analyteca</div>
               <div className="text-sm text-slate-500">Magento Analytics Dashboard</div>
@@ -133,6 +187,14 @@ export default function Dashboard() {
             <div>
               <div className="text-lg font-semibold text-slate-900">Metrics Summary</div>
               <div className="text-sm text-slate-500">Pulled from your Node API: /metrics/summary</div>
+
+              {/* ✅ NEW: Last synced at */}
+              <div className="mt-2 text-sm text-slate-600">
+                Last synced at:{" "}
+                <span className="font-medium text-slate-800">
+                  {lastSyncLoading ? "…" : formatDateTime(lastSyncAt)}
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-end gap-3">
@@ -154,14 +216,30 @@ export default function Dashboard() {
                   className="mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-cyan-300"
                 />
               </div>
+
               <button
                 onClick={() => setRange(getDefaultRange())}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Reset
               </button>
+
+              {/* ✅ NEW: Sync Now button */}
+              <button
+                onClick={onSyncNow}
+                disabled={syncing || !token}
+                className="rounded-xl bg-gradient-to-r from-sky-600 to-cyan-400 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/20 hover:opacity-95 transition disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {syncing ? "Syncing…" : "Sync Now"}
+              </button>
             </div>
           </div>
+
+          {syncErr ? (
+            <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {syncErr}
+            </div>
+          ) : null}
 
           {err ? (
             <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
