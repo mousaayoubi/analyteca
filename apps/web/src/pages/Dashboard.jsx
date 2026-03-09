@@ -3,12 +3,13 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchSummary } from "../api/metrics";
 import { getApiBaseUrl } from "../api/http";
 import { useAuth } from "../auth/AuthContext";
-import { fetchLastSync, runSyncNow } from "../api/sync"; // ✅ NEW
+import { fetchLastSync, runSyncNow } from "../api/sync";
 
-function formatMoney(n) {
+function formatMoney(n, currency = "USD") {
   const v = Number(n || 0);
-  return v.toLocaleString(undefined, { style: "currency", currency: "USD" });
+  return v.toLocaleString(undefined, { style: "currency", currency });
 }
+
 function formatNumber(n) {
   return Number(n || 0).toLocaleString();
 }
@@ -21,7 +22,6 @@ function getDefaultRange() {
   return { from: iso(from), to: iso(to) };
 }
 
-// Calendar days in selected range (inclusive)
 function daysInRangeInclusive(fromIso, toIso) {
   if (!fromIso || !toIso) return 0;
   const from = new Date(`${fromIso}T00:00:00Z`);
@@ -33,9 +33,21 @@ function daysInRangeInclusive(fromIso, toIso) {
 
 function formatDateTime(value) {
   if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
+  const normalized = value.includes("T") ? value : value.replace(" ", "T");
+  const d = new Date(normalized);
+  if (Number.isNaN(d.getTime())) return value;
   return d.toLocaleString();
+}
+
+function getDataSourceLabel(summary) {
+  if (
+    summary?.dataSource === "custom-magento-api" ||
+    summary?.source === "custom_magento_api"
+  ) {
+    return "Custom Magento API";
+  }
+
+  return "Magento API";
 }
 
 export default function Dashboard() {
@@ -48,19 +60,22 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
-  // ✅ NEW: last sync UI state
   const [lastSyncAt, setLastSyncAt] = useState(null);
   const [lastSyncLoading, setLastSyncLoading] = useState(false);
 
-  // ✅ NEW: sync button UI state
   const [syncing, setSyncing] = useState(false);
   const [syncErr, setSyncErr] = useState("");
 
   async function refreshSummary(currentRange = range) {
     setLoading(true);
     setErr("");
+
     try {
-      const data = await fetchSummary({ token, from: currentRange.from, to: currentRange.to });
+      const data = await fetchSummary({
+        token,
+        from: currentRange.from,
+        to: currentRange.to,
+      });
       setSummary(data);
     } catch (e) {
       setErr(e?.message || "Failed to load summary");
@@ -71,15 +86,17 @@ export default function Dashboard() {
 
   async function refreshLastSync() {
     setLastSyncLoading(true);
+
     try {
       const data = await fetchLastSync({ token });
       setLastSyncAt(data?.lastSyncAt || null);
+    } catch {
+      setLastSyncAt(null);
     } finally {
       setLastSyncLoading(false);
     }
   }
 
-  // initial + when range changes
   useEffect(() => {
     let alive = true;
 
@@ -95,28 +112,26 @@ export default function Dashboard() {
         if (!alive) return;
         setErr(e?.message || "Failed to load summary");
       })
-      .finally(() => alive && setLoading(false));
+      .finally(() => {
+        if (alive) setLoading(false);
+      });
 
     return () => {
       alive = false;
     };
   }, [token, range.from, range.to]);
 
-  // ✅ load last sync on mount / token change
   useEffect(() => {
     if (!token) return;
     refreshLastSync();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
 
   async function onSyncNow() {
     setSyncErr("");
     setSyncing(true);
-    try {
-      // run sync for the CURRENT selected range
-      await runSyncNow({ token, from: range.from, to: range.to });
 
-      // after sync: refresh last synced + summary
+    try {
+      await runSyncNow({ token, from: range.from, to: range.to });
       await refreshLastSync();
       await refreshSummary(range);
     } catch (e) {
@@ -126,18 +141,32 @@ export default function Dashboard() {
     }
   }
 
-  const totals = summary?.totals || { revenue: 0, orders: 0, aov: 0, refunds: 0 };
-  const displayFrom = summary?.range?.from || range.from;
-  const displayTo = summary?.range?.to || range.to;
+  const currency = summary?.currency || "USD";
+  const revenue = summary?.total_revenue ?? 0;
+  const orders = summary?.total_orders ?? 0;
+  const aov = summary?.average_order_value ?? 0;
+  const refunds = summary?.refunds ?? 0;
+
+  const displayFrom = summary?.from || range.from;
+  const displayTo = summary?.to || range.to;
   const daysInRange = daysInRangeInclusive(displayFrom, displayTo);
+  const dataSourceLabel = getDataSourceLabel(summary);
+  const statusBreakdown = Array.isArray(summary?.status_breakdown)
+    ? summary.status_breakdown
+    : [];
+
+  const displayedLastSyncAt = summary?.last_synced_at || lastSyncAt;
 
   return (
     <div className="min-h-screen bg-slate-100">
-      {/* Top bar */}
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <img src="/assets/analyteca-logo.png" alt="Analyteca" className="h-9 w-9 object-contain" />
+            <img
+              src="/assets/analyteca-logo.png"
+              alt="Analyteca"
+              className="h-9 w-9 object-contain"
+            />
             <div>
               <div className="text-lg font-semibold text-slate-900">Analyteca</div>
               <div className="text-sm text-slate-500">Magento Analytics Dashboard</div>
@@ -160,7 +189,6 @@ export default function Dashboard() {
       </header>
 
       <main className="mx-auto max-w-6xl px-6 py-8">
-        {/* Info cards */}
         <div className="grid gap-5 md:grid-cols-3">
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="text-sm text-slate-500">API Base URL</div>
@@ -181,19 +209,27 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Range + KPIs */}
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
               <div className="text-lg font-semibold text-slate-900">Metrics Summary</div>
-              <div className="text-sm text-slate-500">Pulled from your Node API: /metrics/summary</div>
+              <div className="mt-1 text-sm text-slate-500">
+                Pulled from your Node API: /api/metrics/summary
+              </div>
 
-              {/* ✅ NEW: Last synced at */}
-              <div className="mt-2 text-sm text-slate-600">
-                Last synced at:{" "}
-                <span className="font-medium text-slate-800">
-                  {lastSyncLoading ? "…" : formatDateTime(lastSyncAt)}
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <span className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-sm font-medium text-violet-700">
+                  Data source: {dataSourceLabel}
                 </span>
+
+                <div className="text-sm text-slate-600">
+                  Last synced at:{" "}
+                  <span className="font-medium text-slate-800">
+                    {lastSyncLoading && !summary?.last_synced_at
+                      ? "…"
+                      : formatDateTime(displayedLastSyncAt)}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -207,6 +243,7 @@ export default function Dashboard() {
                   className="mt-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-2 focus:ring-cyan-300"
                 />
               </div>
+
               <div>
                 <label className="block text-xs font-medium text-slate-600">To</label>
                 <input
@@ -224,11 +261,10 @@ export default function Dashboard() {
                 Reset
               </button>
 
-              {/* ✅ NEW: Sync Now button */}
               <button
                 onClick={onSyncNow}
                 disabled={syncing || !token}
-                className="rounded-xl bg-gradient-to-r from-sky-600 to-cyan-400 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/20 hover:opacity-95 transition disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-xl bg-gradient-to-r from-sky-600 to-cyan-400 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-sky-400/20 transition hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {syncing ? "Syncing…" : "Sync Now"}
               </button>
@@ -248,10 +284,10 @@ export default function Dashboard() {
           ) : null}
 
           <div className="mt-6 grid gap-4 md:grid-cols-4">
-            <Kpi title="Revenue" value={loading ? "…" : formatMoney(totals.revenue)} />
-            <Kpi title="Orders" value={loading ? "…" : formatNumber(totals.orders)} />
-            <Kpi title="AOV" value={loading ? "…" : formatMoney(totals.aov)} />
-            <Kpi title="Refunds" value={loading ? "…" : formatMoney(totals.refunds)} />
+            <Kpi title="Revenue" value={loading ? "…" : formatMoney(revenue, currency)} />
+            <Kpi title="Orders" value={loading ? "…" : formatNumber(orders)} />
+            <Kpi title="AOV" value={loading ? "…" : formatMoney(aov, currency)} />
+            <Kpi title="Refunds" value={loading ? "…" : formatMoney(refunds, currency)} />
           </div>
 
           <div className="mt-6 text-sm text-slate-500">
@@ -259,6 +295,48 @@ export default function Dashboard() {
             <span className="font-medium text-slate-700">{displayTo}</span>
             {" · "}
             Days: <span className="font-medium text-slate-700">{loading ? "—" : daysInRange}</span>
+          </div>
+
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+            <div className="text-sm font-semibold text-slate-900">Status breakdown</div>
+
+            {loading ? (
+              <div className="mt-3 text-sm text-slate-500">Loading…</div>
+            ) : statusBreakdown.length === 0 ? (
+              <div className="mt-3 text-sm text-slate-500">No orders found for this range.</div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {statusBreakdown.map((item) => (
+                  <div
+                    key={item.status}
+                    className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-white p-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div>
+                      <div className="text-sm font-semibold capitalize text-slate-900">
+                        {item.status}
+                      </div>
+                      <div className="text-xs text-slate-500">Order status</div>
+                    </div>
+
+                    <div className="flex gap-6">
+                      <div>
+                        <div className="text-xs text-slate-500">Orders</div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {formatNumber(item.total_orders)}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs text-slate-500">Revenue</div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {formatMoney(item.total_revenue, currency)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </main>
