@@ -9,6 +9,7 @@ Headless Magento Analytics & Operations Dashboard
 
 
 
+
 Monorepo structure:
 
 apps/api  → Node.js (Express + JWT + Postgres + Cron)<br />
