@@ -1,11 +1,25 @@
-export default function SectionCard({ title, actions, children }) {
+export default function SectionCard({
+  title,
+  description,
+  action,
+  children,
+}) {
   return (
-    <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-base font-semibold text-gray-900">{title}</h2>
-        {actions ? <div>{actions}</div> : null}
+    <section className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+      <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h3 className="text-[18px] font-semibold tracking-tight text-slate-900">
+            {title}
+          </h3>
+          {description ? (
+            <p className="mt-1 text-sm text-slate-500">{description}</p>
+          ) : null}
+        </div>
+
+        {action ? <div>{action}</div> : null}
       </div>
+
       {children}
-    </div>
+    </section>
   );
 }

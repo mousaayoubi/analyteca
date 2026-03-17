@@ -19,7 +19,7 @@ app.use(requestId);
 app.use(loggerHttp);
 
 app.use("/auth", authRoutes);
-app.use("/metrics", metricsRoutes);
+app.use("/api/metrics", metricsRoutes);
 app.use("/sync", syncRoutes);
 app.use("/magento", magentoRoutes);
 

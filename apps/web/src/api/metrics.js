@@ -6,5 +6,5 @@ export function fetchSummary({ token, from, to } = {}) {
 	if (to) params.set("to", to);
 
 	const qs = params.toString();
-	return apiFetch(`/metrics/summary${qs ? `?${qs}` : ""}`, { token });
+	return apiFetch(`/api/metrics/summary${qs ? `?${qs}` : ""}`, { token });
 }
