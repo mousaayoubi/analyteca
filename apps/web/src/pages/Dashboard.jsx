@@ -1,436 +1,227 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import DashboardHeaderBar from "../components/dashboard/DashboardHeaderBar";
-import DateRangeBar from "../components/dashboard/DateRangeBar";
-import MetricCard from "../components/dashboard/MetricCard";
-import SectionCard from "../components/dashboard/SectionCard";
-import RevenueTrendChart from "../components/dashboard/RevenueTrendChart";
-import { fetchSummary } from "../api/metrics";
+import { useEffect, useMemo, useState } from "react";
+import { fetchSummary, triggerSync } from "../api/metrics";
 import { getApiBaseUrl } from "../api/http";
 import { useAuth } from "../auth/AuthContext";
-import {
-  Activity,
-  BadgeDollarSign,
-  CreditCard,
-  RefreshCw,
-  ShoppingCart,
-  Wallet,
-} from "lucide-react";
+import TopProductsTable from "../components/dashboard/TopProductsTable";
+import RevenueByStatusDonut from "../components/dashboard/RevenueByStatusDonut";
 
-function formatMoney(value) {
-  const amount = Number(value || 0);
-  return amount.toLocaleString(undefined, {
+function formatMoney(n) {
+  const v = Number(n || 0);
+  return v.toLocaleString(undefined, {
     style: "currency",
     currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   });
 }
 
-function formatNumber(value) {
-  return Number(value || 0).toLocaleString();
-}
-
-function formatDateInput(date) {
-  return new Date(date).toISOString().slice(0, 10);
+function formatNumber(n) {
+  return Number(n || 0).toLocaleString();
 }
 
 function getDefaultRange() {
   const to = new Date();
   const from = new Date();
   from.setDate(to.getDate() - 60);
-
-  return {
-    from: formatDateInput(from),
-    to: formatDateInput(to),
-  };
+  const iso = (d) => d.toISOString().slice(0, 10);
+  return { from: iso(from), to: iso(to) };
 }
 
-function formatDisplayDate(dateString) {
-  if (!dateString) return "—";
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return dateString;
-  return date.toLocaleDateString();
-}
-
-function normalizeTimeseries(payload) {
-  const raw =
-    payload?.timeseries ||
-    payload?.revenueSeries ||
-    payload?.daily ||
-    payload?.series ||
-    payload?.chart ||
-    [];
-
-  if (!Array.isArray(raw)) return [];
-
-  return raw.map((item, index) => {
-    const label =
-      item.label ||
-      item.date ||
-      item.day ||
-      item.period ||
-      item.name ||
-      `Point ${index + 1}`;
-
-    return {
-      label,
-      date: item.date || item.day || item.label || label,
-      revenue: Number(
-        item.revenue ??
-          item.totalRevenue ??
-          item.grand_total ??
-          item.amount ??
-          0
-      ),
-      orders: Number(
-        item.orders ??
-          item.orderCount ??
-          item.totalOrders ??
-          item.count ??
-          0
-      ),
-      aov: Number(
-        item.aov ??
-          item.averageOrderValue ??
-          item.avgOrderValue ??
-          0
-      ),
-    };
-  });
-}
-
-function normalizeStatusBreakdown(payload) {
-  const raw =
-    payload?.statusBreakdown ||
-    payload?.statuses ||
-    payload?.status_breakdown ||
-    [];
-
-  if (!Array.isArray(raw)) return [];
-
-  return raw.map((item) => ({
-    status: item.status || item.name || "Unknown",
-    orders: Number(item.orders ?? item.count ?? 0),
-    revenue: Number(item.revenue ?? item.amount ?? 0),
-  }));
-}
-
-function normalizeSummary(payload) {
-  const revenue =
-    payload?.revenue ??
-    payload?.totalRevenue ??
-    payload?.summary?.revenue ??
-    0;
-
-  const orders =
-    payload?.orders ??
-    payload?.totalOrders ??
-    payload?.summary?.orders ??
-    0;
-
-  const aov =
-    payload?.aov ??
-    payload?.averageOrderValue ??
-    payload?.summary?.aov ??
-    (Number(orders) > 0 ? Number(revenue) / Number(orders) : 0);
-
-  const refunds =
-    payload?.refunds ??
-    payload?.totalRefunds ??
-    payload?.summary?.refunds ??
-    0;
-
-  return {
-    revenue: Number(revenue || 0),
-    orders: Number(orders || 0),
-    aov: Number(aov || 0),
-    refunds: Number(refunds || 0),
-    timeseries: normalizeTimeseries(payload),
-    statusBreakdown: normalizeStatusBreakdown(payload),
-    lastSyncedAt:
-      payload?.lastSyncedAt ||
-      payload?.syncedAt ||
-      payload?.fetchedAt ||
-      payload?.updatedAt ||
-      null,
-    sourceLabel:
-      payload?.sourceLabel ||
-      payload?.source ||
-      "Custom Magento API",
-  };
+function formatDateTime(value) {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString();
 }
 
 export default function Dashboard() {
-  const { token, user, logout } = useAuth();
+  const { token } = useAuth();
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const [range, setRange] = useState(getDefaultRange());
-  const [data, setData] = useState({
-    revenue: 0,
-    orders: 0,
-    aov: 0,
-    refunds: 0,
-    timeseries: [],
-    statusBreakdown: [],
-    lastSyncedAt: null,
-    sourceLabel: "Custom Magento API",
-  });
+  const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [error, setError] = useState("");
 
-  const loadDashboard = useCallback(
-    async ({ from, to }, isManualSync = false) => {
-      try {
-        setError("");
-        if (isManualSync) {
-          setSyncing(true);
-        } else {
-          setLoading(true);
-        }
-
-        const response = await fetchSummary({
-          from,
-          to,
-          token,
-        });
-
-        setData(normalizeSummary(response));
-      } catch (err) {
-        setError(
-          err?.message || "Failed to load analytics summary from Testlicious."
-        );
-      } finally {
-        setLoading(false);
-        setSyncing(false);
-      }
-    },
-    [token]
-  );
+  async function loadDashboard() {
+    try {
+      setLoading(true);
+      setError("");
+      const summary = await fetchSummary(range, token);
+      setData(summary);
+    } catch (err) {
+      console.error(err);
+      setError(err?.message || "Failed to load dashboard data.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
-    loadDashboard(range);
-  }, [range, loadDashboard]);
+    loadDashboard();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [range.from, range.to]);
 
-  const handleRangeChange = (key, value) => {
-    setRange((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
+  async function handleSyncNow() {
+    try {
+      setSyncing(true);
+      setError("");
+      await triggerSync(token);
+      await loadDashboard();
+    } catch (err) {
+      console.error(err);
+      setError(err?.message || "Sync failed.");
+    } finally {
+      setSyncing(false);
+    }
+  }
 
-  const handleReset = () => {
-    setRange(getDefaultRange());
-  };
-
-  const handleSyncNow = async () => {
-    await loadDashboard(range, true);
-  };
-
-  const statusCards = data.statusBreakdown.length
-    ? data.statusBreakdown
-    : [
-        { status: "Complete", orders: 0, revenue: 0 },
-        { status: "Pending", orders: 0, revenue: 0 },
-        { status: "Processing", orders: 0, revenue: 0 },
-      ];
+  const topProducts = data?.topProducts || [];
+  const revenueByStatus = data?.revenueByStatus || data?.statusBreakdown || [];
 
   return (
-    <div className="min-h-screen bg-[#F4F8FC]">
-      <DashboardHeaderBar
-        user={user}
-        apiBaseUrl={apiBaseUrl}
-        onSignOut={logout}
-      />
+    <div className="min-h-screen bg-slate-100">
+      <div className="mx-auto max-w-[1600px] px-6 py-6">
+        <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+              Commerce analytics
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Revenue, orders, product mix, and status performance for Testlicious.
+            </p>
+          </div>
 
-      <main className="mx-auto w-full max-w-[1600px] px-6 py-6 lg:px-8 lg:py-8">
-        <div className="space-y-6">
-          <DateRangeBar
-            title="Metrics Summary"
-            subtitle="Pulled from your Node API: /api/metrics/summary"
-            sourceLabel={data.sourceLabel}
-            lastSyncedAt={data.lastSyncedAt}
-            from={range.from}
-            to={range.to}
-            loading={loading}
-            syncing={syncing}
-            onChange={handleRangeChange}
-            onReset={handleReset}
-            onSync={handleSyncNow}
-          />
-
-          {error ? (
-            <div className="rounded-[24px] border border-red-200 bg-red-50 px-5 py-4 text-sm font-medium text-red-700 shadow-sm">
-              {error}
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="flex flex-col">
+              <label className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+                From
+              </label>
+              <input
+                type="date"
+                value={range.from}
+                onChange={(e) =>
+                  setRange((prev) => ({ ...prev, from: e.target.value }))
+                }
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
+              />
             </div>
-          ) : null}
 
-          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              title="Revenue"
-              value={formatMoney(data.revenue)}
-              icon={BadgeDollarSign}
-              tone="primary"
-              subtitle="Total revenue for selected period"
-            />
-            <MetricCard
-              title="Orders"
-              value={formatNumber(data.orders)}
-              icon={ShoppingCart}
-              tone="sky"
-              subtitle="Orders captured from Testlicious"
-            />
-            <MetricCard
-              title="AOV"
-              value={formatMoney(data.aov)}
-              icon={CreditCard}
-              tone="cyan"
-              subtitle="Average order value"
-            />
-            <MetricCard
-              title="Refunds"
-              value={formatMoney(data.refunds)}
-              icon={Wallet}
-              tone="slate"
-              subtitle="Refunded amount in selected range"
-            />
+            <div className="flex flex-col">
+              <label className="mb-1 text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+                To
+              </label>
+              <input
+                type="date"
+                value={range.to}
+                onChange={(e) =>
+                  setRange((prev) => ({ ...prev, to: e.target.value }))
+                }
+                className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSyncNow}
+              disabled={syncing}
+              className="h-11 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {syncing ? "Syncing..." : "Sync Now"}
+            </button>
+          </div>
+        </div>
+
+        {error ? (
+          <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        ) : null}
+
+        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <MetricCard label="Revenue" value={formatMoney(data?.revenue)} />
+          <MetricCard label="Orders" value={formatNumber(data?.orders)} />
+          <MetricCard label="AOV" value={formatMoney(data?.aov)} />
+          <MetricCard label="Refunds" value={formatMoney(data?.refunds)} />
+        </div>
+
+        <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.65fr_0.95fr]">
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-slate-900">Performance insights</h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Executive summary styled like modern commerce analytics tools.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <InfoCard
+                title="Sync confidence"
+                description={`Last synced at ${formatDateTime(data?.lastSyncedAt)}`}
+              />
+              <InfoCard
+                title="Revenue-first layout"
+                description="The dashboard keeps revenue, orders, AOV, and product performance immediately visible."
+              />
+              <InfoCard
+                title="Trend visibility"
+                description="Revenue by status and top products help explain what is driving the selected period."
+              />
+            </div>
           </section>
 
-          <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.7fr_1fr]">
-            <SectionCard
-              title="Revenue trend"
-              description={`Live revenue performance from ${formatDisplayDate(
-                range.from
-              )} to ${formatDisplayDate(range.to)}`}
-              action={
-                <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
-                  <Activity className="h-4 w-4" />
-                  Live from Testlicious
-                </div>
-              }
-            >
-              <RevenueTrendChart data={data.timeseries} loading={loading} />
-            </SectionCard>
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-5">
+              <h2 className="text-xl font-semibold text-slate-900">Selected range</h2>
+              <p className="mt-1 text-sm text-slate-500">Quick period context</p>
+            </div>
 
-            <SectionCard
-              title="Status breakdown"
-              description="Order and revenue contribution by Magento order status"
-            >
-              <div className="space-y-3">
-                {statusCards.map((item) => (
-                  <div
-                    key={item.status}
-                    className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 transition hover:border-sky-200 hover:shadow-sm"
-                  >
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900">
-                        {item.status}
-                      </div>
-                      <div className="text-xs text-slate-500">
-                        Order status
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-8 text-right">
-                      <div>
-                        <div className="text-xs text-slate-500">Orders</div>
-                        <div className="text-base font-semibold text-slate-900">
-                          {formatNumber(item.orders)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs text-slate-500">Revenue</div>
-                        <div className="text-base font-semibold text-slate-900">
-                          {formatMoney(item.revenue)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-          </section>
-
-          <section className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-            <SectionCard
-              title="Performance insights"
-              description="Executive summary styled like modern commerce analytics tools"
-            >
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-sky-50 to-cyan-50 p-4">
-                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
-                    <RefreshCw className="h-5 w-5 text-sky-600" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Sync confidence
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Manual sync and visible last-sync timestamp give the dashboard
-                    an operations-grade feel.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-blue-50 to-sky-50 p-4">
-                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
-                    <BadgeDollarSign className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Revenue-first layout
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    The top fold highlights revenue, order volume, AOV, and refunds
-                    exactly like a production analytics dashboard.
-                  </p>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-cyan-50 to-slate-50 p-4">
-                  <div className="mb-2 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white shadow-sm">
-                    <Activity className="h-5 w-5 text-cyan-600" />
-                  </div>
-                  <h3 className="text-sm font-semibold text-slate-900">
-                    Trend visibility
-                  </h3>
-                  <p className="mt-1 text-sm text-slate-600">
-                    Revenue trend chart makes anomalies, growth, and dips visible at
-                    a glance for Testlicious.
-                  </p>
-                </div>
-              </div>
-            </SectionCard>
-
-            <SectionCard
-              title="Selected range"
-              description="Quick period context"
-            >
-              <div className="space-y-4">
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-                    From
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-slate-900">
-                    {formatDisplayDate(range.from)}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                  <div className="text-xs uppercase tracking-[0.14em] text-slate-500">
-                    To
-                  </div>
-                  <div className="mt-1 text-lg font-semibold text-slate-900">
-                    {formatDisplayDate(range.to)}
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-sky-500 to-cyan-500 p-4 text-white">
-                  <div className="text-xs uppercase tracking-[0.14em] text-white/80">
-                    Data source
-                  </div>
-                  <div className="mt-1 text-lg font-semibold">
-                    {data.sourceLabel}
-                  </div>
-                </div>
-              </div>
-            </SectionCard>
+            <RangeBlock label="From" value={range.from} />
+            <RangeBlock label="To" value={range.to} />
+            <RangeBlock label="Data source" value={data?.sourceLabel || "Magento"} />
+            <RangeBlock
+              label="Last synced at"
+              value={formatDateTime(data?.lastSyncedAt)}
+            />
           </section>
         </div>
-      </main>
+
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.7fr_1fr]">
+          <TopProductsTable products={topProducts} loading={loading} />
+          <RevenueByStatusDonut data={revenueByStatus} loading={loading} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value }) {
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="text-sm font-medium text-slate-500">{label}</div>
+      <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function InfoCard({ title, description }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+      <div className="text-base font-semibold text-slate-900">{title}</div>
+      <div className="mt-2 text-sm leading-6 text-slate-600">{description}</div>
+    </div>
+  );
+}
+
+function RangeBlock({ label, value }) {
+  return (
+    <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 last:mb-0">
+      <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
+        {label}
+      </div>
+      <div className="mt-2 text-xl font-semibold text-slate-900">{value || "—"}</div>
     </div>
   );
 }

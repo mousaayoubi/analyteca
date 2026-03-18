@@ -111,6 +111,28 @@ function parsePossibleJsonObject(item) {
   return null;
 }
 
+function parsePayloadMaybeJson(payload) {
+  let parsed = payload;
+
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return {};
+    }
+  }
+
+  return parsed && typeof parsed === "object" ? parsed : {};
+}
+
 function normalizeTimeseries(payload) {
   const raw =
     payload?.timeseries ||
@@ -247,7 +269,84 @@ function normalizeStatusBreakdown(payload) {
   }));
 }
 
+function normalizeTopProducts(payload) {
+  const raw =
+    payload?.topProducts ||
+    payload?.top_products ||
+    payload?.products ||
+    payload?.bestSellers ||
+    payload?.best_sellers ||
+    payload?.data?.topProducts ||
+    payload?.data?.top_products ||
+    [];
+
+  if (!Array.isArray(raw)) return [];
+
+  return raw
+    .map((item) => ({
+      name: String(
+        item?.name ||
+          item?.product_name ||
+          item?.productName ||
+          item?.title ||
+          "Unnamed product"
+      ),
+      sku: String(item?.sku || item?.product_sku || item?.productSku || "—"),
+      qtySold: toNumber(
+        item?.qtySold ??
+          item?.qty_sold ??
+          item?.qtyOrdered ??
+          item?.qty_ordered ??
+          item?.quantity ??
+          0
+      ),
+      orders: toNumber(
+        item?.orders ??
+          item?.orderCount ??
+          item?.order_count ??
+          item?.count ??
+          0
+      ),
+      revenue: toNumber(
+        item?.revenue ??
+          item?.row_total ??
+          item?.totalRevenue ??
+          item?.total_revenue ??
+          item?.amount ??
+          0
+      ),
+    }))
+    .sort((a, b) => b.revenue - a.revenue);
+}
+
+function normalizeRevenueByStatus(payload, fallbackStatusBreakdown = []) {
+  const raw =
+    payload?.revenueByStatus ||
+    payload?.revenue_by_status ||
+    payload?.statusRevenue ||
+    payload?.status_revenue ||
+    payload?.data?.revenueByStatus ||
+    payload?.data?.revenue_by_status ||
+    null;
+
+  if (!raw || !Array.isArray(raw)) {
+    return fallbackStatusBreakdown.map((item) => ({
+      status: item.status,
+      orders: toNumber(item.orders),
+      revenue: toNumber(item.revenue),
+    }));
+  }
+
+  return raw.map((item) => ({
+    status: String(item?.status || item?.name || "Unknown"),
+    orders: toNumber(item?.orders ?? item?.count ?? 0),
+    revenue: toNumber(item?.revenue ?? item?.amount ?? item?.total_revenue ?? 0),
+  }));
+}
+
 function normalizeSummary(payload, sourceLabel, requestedFrom, requestedTo) {
+  payload = parsePayloadMaybeJson(payload);
+
   const revenue = toNumber(
     payload?.revenue ??
       payload?.totalRevenue ??
@@ -295,13 +394,19 @@ function normalizeSummary(payload, sourceLabel, requestedFrom, requestedTo) {
     requestedTo || payload?.to
   );
 
+  const statusBreakdown = normalizeStatusBreakdown(payload);
+  const topProducts = normalizeTopProducts(payload);
+  const revenueByStatus = normalizeRevenueByStatus(payload, statusBreakdown);
+
   return {
     revenue,
     orders,
     aov,
     refunds,
     timeseries: filledTimeseries,
-    statusBreakdown: normalizeStatusBreakdown(payload),
+    statusBreakdown,
+    topProducts,
+    revenueByStatus,
     sourceLabel: payload?.source || sourceLabel,
     lastSyncedAt:
       payload?.lastSyncedAt ||
@@ -326,10 +431,19 @@ async function fetchJsonWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEO
     const text = await response.text();
 
     let json = null;
+
     try {
       json = text ? JSON.parse(text) : null;
+
+      if (typeof json === "string") {
+        try {
+          json = JSON.parse(json);
+        } catch {
+          // keep string as-is
+        }
+      }
     } catch {
-      json = null;
+      json = text || null;
     }
 
     if (!response.ok) {
@@ -343,7 +457,7 @@ async function fetchJsonWithTimeout(url, options = {}, timeoutMs = DEFAULT_TIMEO
       });
     }
 
-    if (!json || typeof json !== "object") {
+    if (json === null) {
       throw new MetricsServiceError("Magento analytics endpoint returned invalid JSON.", {
         status: 502,
         code: "UPSTREAM_INVALID_JSON",
@@ -377,21 +491,21 @@ export async function getSummary({ from, to }) {
   assertValidRange({ from, to });
 
   const magentoBaseUrl = getRequiredEnv("MAGENTO_BASE_URL").replace(/\/+$/, "");
-  const magentoToken = getRequiredEnv("MAGENTO_ACCESS_TOKEN");
   const analyticsPath = process.env.MAGENTO_ANALYTICS_PATH || DEFAULT_ANALYTICS_PATH;
   const analyticsUrl = new URL(`${magentoBaseUrl}${analyticsPath}`);
 
   analyticsUrl.searchParams.set("from", from);
   analyticsUrl.searchParams.set("to", to);
 
+  const headers = {
+    Accept: "application/json",
+  };
+
   const payload = await fetchJsonWithTimeout(
     analyticsUrl.toString(),
     {
       method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${magentoToken}`,
-      },
+      headers,
     },
     toNumber(process.env.MAGENTO_ANALYTICS_TIMEOUT_MS, DEFAULT_TIMEOUT_MS)
   );
