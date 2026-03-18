@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { fetchSummary, triggerSync } from "../api/metrics";
 import { getApiBaseUrl } from "../api/http";
 import { useAuth } from "../auth/AuthContext";
+import RevenueOverTimeChart from "../components/dashboard/RevenueOverTimeChart";
 import TopProductsTable from "../components/dashboard/TopProductsTable";
 import RevenueByStatusDonut from "../components/dashboard/RevenueByStatusDonut";
 
@@ -60,7 +61,7 @@ export default function Dashboard() {
   useEffect(() => {
     loadDashboard();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [range.from, range.to]);
+  }, [range.from, range.to, token]);
 
   async function handleSyncNow() {
     try {
@@ -78,6 +79,7 @@ export default function Dashboard() {
 
   const topProducts = data?.topProducts || [];
   const revenueByStatus = data?.revenueByStatus || data?.statusBreakdown || [];
+  const timeseries = data?.timeseries || [];
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -165,7 +167,7 @@ export default function Dashboard() {
               />
               <InfoCard
                 title="Trend visibility"
-                description="Revenue by status and top products help explain what is driving the selected period."
+                description="Revenue over time, status mix, and top products explain what is driving the selected period."
               />
             </div>
           </section>
@@ -184,6 +186,10 @@ export default function Dashboard() {
               value={formatDateTime(data?.lastSyncedAt)}
             />
           </section>
+        </div>
+
+        <div className="mb-6">
+          <RevenueOverTimeChart data={timeseries} loading={loading} />
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.7fr_1fr]">
