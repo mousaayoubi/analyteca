@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { LogOut, RefreshCw } from "lucide-react";
 import { fetchSummary, triggerSync } from "../api/metrics";
 import { getApiBaseUrl } from "../api/http";
 import { useAuth } from "../auth/AuthContext";
@@ -36,7 +37,7 @@ function formatDateTime(value) {
 }
 
 export default function Dashboard() {
-  const { token } = useAuth();
+  const { token, user, logout } = useAuth();
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
   const [range, setRange] = useState(getDefaultRange());
   const [data, setData] = useState(null);
@@ -83,6 +84,56 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-slate-100">
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
+          <div className="flex items-center gap-3">
+            <img
+              src="/analyteca-logo.png"
+              alt="Analyteca"
+              className="h-10 w-auto object-contain"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+            <div className="flex flex-col">
+              <span className="text-lg font-semibold tracking-tight text-slate-900">
+                Analyteca
+              </span>
+              <span className="text-xs text-slate-500">
+                Commerce intelligence
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
+              <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+              <span className="text-sm font-medium text-emerald-700">
+                Connected
+              </span>
+            </div>
+
+            <div className="hidden rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 sm:block">
+              <div className="text-xs uppercase tracking-[0.16em] text-slate-400">
+                Account
+              </div>
+              <div className="text-sm font-medium text-slate-700">
+                {user?.email || user?.name || "Authenticated user"}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={logout}
+              className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
       <div className="mx-auto max-w-[1600px] px-6 py-6">
         <div className="mb-6 flex flex-col gap-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -127,9 +178,19 @@ export default function Dashboard() {
               type="button"
               onClick={handleSyncNow}
               disabled={syncing}
-              className="h-11 rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+              className="
+                inline-flex h-11 items-center gap-2 rounded-full
+                bg-gradient-to-r from-sky-500 to-cyan-500
+                px-6 text-sm font-semibold text-white
+                shadow-[0_10px_24px_rgba(14,165,233,0.28)]
+                transition-all duration-200
+                hover:scale-[1.01] hover:from-sky-600 hover:to-cyan-600
+                active:scale-[0.99]
+                disabled:cursor-not-allowed disabled:opacity-70
+              "
             >
-              {syncing ? "Syncing..." : "Sync Now"}
+              <RefreshCw className={`h-4 w-4 ${syncing ? "animate-spin" : ""}`} />
+              <span>{syncing ? "Syncing..." : "Sync Now"}</span>
             </button>
           </div>
         </div>
