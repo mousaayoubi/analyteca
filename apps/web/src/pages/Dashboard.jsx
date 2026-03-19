@@ -6,6 +6,8 @@ import {
   ShoppingCart,
   CreditCard,
   Wallet,
+  BadgeDollarSign,
+  Activity,
 } from "lucide-react";
 import { fetchSummary, triggerSync } from "../api/metrics";
 import { getApiBaseUrl } from "../api/http";
@@ -320,33 +322,9 @@ export default function Dashboard() {
         </div>
 
         <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1.65fr_0.95fr]">
-          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-6">
-              <h2 className="text-xl font-semibold text-slate-900">
-                Performance insights
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Executive summary styled like modern commerce analytics tools.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
-              <InfoCard
-                title="Sync confidence"
-                description={`Last synced at ${formatDateTime(
-                  data?.lastSyncedAt
-                )}`}
-              />
-              <InfoCard
-                title="Revenue-first layout"
-                description="The dashboard keeps revenue, orders, AOV, and product performance immediately visible."
-              />
-              <InfoCard
-                title="Trend visibility"
-                description="Revenue over time, status mix, and top products explain what is driving the selected period."
-              />
-            </div>
-          </section>
+          <PerformanceInsightsSection
+            lastSyncedAt={formatDateTime(data?.lastSyncedAt)}
+          />
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-6">
@@ -385,18 +363,13 @@ function MetricCard({
 }) {
   return (
     <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white px-7 py-7 shadow-sm">
-      
-      {/* Top row */}
       <div className="flex items-start justify-between">
-        <div className="text-[16px] font-medium text-slate-500">
-          {label}
-        </div>
+        <div className="text-[16px] font-medium text-slate-500">{label}</div>
 
         {Icon && (
           <div
             className={`
-              flex items-center justify-center
-              h-[60px] w-[60px] rounded-[20px]
+              flex h-[60px] w-[60px] items-center justify-center rounded-[20px]
               ${iconBgClass} ${iconShadowClass}
             `}
           >
@@ -405,12 +378,10 @@ function MetricCard({
         )}
       </div>
 
-      {/* Value */}
       <div className="mt-6 text-[48px] font-semibold leading-[1.1] tracking-tight text-slate-950">
         {value}
       </div>
 
-      {/* Description */}
       {description && (
         <div className="mt-5 max-w-[260px] text-[16px] leading-7 text-slate-500">
           {description}
@@ -420,12 +391,104 @@ function MetricCard({
   );
 }
 
-function InfoCard({ title, description }) {
+function PerformanceInsightsSection({ lastSyncedAt }) {
+  const items = [
+    {
+      title: "Sync confidence",
+      description:
+        lastSyncedAt && lastSyncedAt !== "—"
+          ? `Manual sync and visible last-sync timestamp (${lastSyncedAt}) give the dashboard an operations-grade feel.`
+          : "Manual sync and visible last-sync timestamp give the dashboard an operations-grade feel.",
+      icon: RefreshCw,
+      cardBg: "#E8F6FB",
+      iconColor: "#0B84D8",
+    },
+    {
+      title: "Revenue-first layout",
+      description:
+        "The top fold highlights revenue, order volume, AOV, and refunds exactly like a production analytics dashboard.",
+      icon: BadgeDollarSign,
+      cardBg: "#EFF4FA",
+      iconColor: "#2563EB",
+    },
+    {
+      title: "Trend visibility",
+      description:
+        "Revenue trend chart makes anomalies, growth, and dips visible at a glance for Testlicious.",
+      icon: Activity,
+      cardBg: "#EEF9FB",
+      iconColor: "#0991B1",
+    },
+  ];
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
-      <div className="text-base font-semibold text-slate-900">{title}</div>
-      <div className="mt-2 text-sm leading-6 text-slate-600">{description}</div>
-    </div>
+    <section
+      className="rounded-[40px] border shadow-[0_2px_8px_rgba(15,23,42,0.06)]"
+      style={{
+        backgroundColor: "#F7F8FA",
+        borderColor: "#D6DEE7",
+        padding: "38px 36px 108px",
+      }}
+    >
+      <div className="mb-10">
+        <h2
+          className="text-[26px] font-semibold leading-none tracking-[-0.02em]"
+          style={{ color: "#0A1F44" }}
+        >
+          Performance insights
+        </h2>
+        <p
+          className="mt-4 text-[18px] font-normal"
+          style={{ color: "#5E7695" }}
+        >
+          Executive summary styled like modern commerce analytics tools
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        {items.map((item) => {
+          const Icon = item.icon;
+
+          return (
+            <div
+              key={item.title}
+              className="rounded-[28px] border"
+              style={{
+                backgroundColor: item.cardBg,
+                borderColor: "#D8E3EC",
+                padding: "24px 24px 26px",
+                minHeight: "308px",
+              }}
+            >
+              <div
+                className="mb-5 flex h-[62px] w-[62px] items-center justify-center rounded-[18px] border bg-white shadow-[0_4px_10px_rgba(15,23,42,0.08)]"
+                style={{ borderColor: "#D7E0E8" }}
+              >
+                <Icon
+                  size={28}
+                  strokeWidth={2.2}
+                  color={item.iconColor}
+                />
+              </div>
+
+              <h3
+                className="text-[19px] font-semibold leading-[1.25]"
+                style={{ color: "#0A1F44" }}
+              >
+                {item.title}
+              </h3>
+
+              <p
+                className="mt-3 max-w-[240px] text-[18px] leading-[1.65]"
+                style={{ color: "#4D6788" }}
+              >
+                {item.description}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
