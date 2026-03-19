@@ -36,6 +36,68 @@ function formatDateTime(value) {
   return d.toLocaleString();
 }
 
+function normalizeStatusBreakdown(items = []) {
+  const normalized = Array.isArray(items)
+    ? items.map((item) => ({
+        status:
+          item?.status ||
+          item?.label ||
+          item?.name ||
+          item?.orderStatus ||
+          "Unknown",
+        orders:
+          Number(
+            item?.orders ??
+              item?.orderCount ??
+              item?.count ??
+              item?.totalOrders ??
+              0
+          ) || 0,
+        revenue:
+          Number(
+            item?.revenue ??
+              item?.amount ??
+              item?.totalRevenue ??
+              item?.grandTotal ??
+              0
+          ) || 0,
+      }))
+    : [];
+
+  const preferredOrder = ["complete", "pending", "processing"];
+  const map = new Map(
+    normalized.map((item) => [String(item.status).toLowerCase(), item])
+  );
+
+  const ordered = preferredOrder.map((key) => {
+    const existing = map.get(key);
+    return (
+      existing || {
+        status: key.charAt(0).toUpperCase() + key.slice(1),
+        orders: 0,
+        revenue: 0,
+      }
+    );
+  });
+
+  const extras = normalized.filter(
+    (item) => !preferredOrder.includes(String(item.status).toLowerCase())
+  );
+
+  return [...ordered, ...extras];
+}
+
+function formatStatusLabel(status) {
+  const value = String(status || "").trim();
+  if (!value) return "Unknown";
+
+  return value
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 export default function Dashboard() {
   const { token, user, logout } = useAuth();
   const apiBaseUrl = useMemo(() => getApiBaseUrl(), []);
@@ -80,6 +142,9 @@ export default function Dashboard() {
 
   const topProducts = data?.topProducts || [];
   const revenueByStatus = data?.revenueByStatus || data?.statusBreakdown || [];
+  const statusBreakdown = normalizeStatusBreakdown(
+    data?.statusBreakdown || data?.revenueByStatus || []
+  );
   const timeseries = data?.timeseries || [];
 
   return (
@@ -141,7 +206,8 @@ export default function Dashboard() {
               Commerce analytics
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Revenue, orders, product mix, and status performance for Testlicious.
+              Revenue, orders, product mix, and status performance for
+              Testlicious.
             </p>
           </div>
 
@@ -211,7 +277,9 @@ export default function Dashboard() {
         <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.65fr_0.95fr]">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">Performance insights</h2>
+              <h2 className="text-xl font-semibold text-slate-900">
+                Performance insights
+              </h2>
               <p className="mt-1 text-sm text-slate-500">
                 Executive summary styled like modern commerce analytics tools.
               </p>
@@ -220,7 +288,9 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
               <InfoCard
                 title="Sync confidence"
-                description={`Last synced at ${formatDateTime(data?.lastSyncedAt)}`}
+                description={`Last synced at ${formatDateTime(
+                  data?.lastSyncedAt
+                )}`}
               />
               <InfoCard
                 title="Revenue-first layout"
@@ -235,13 +305,18 @@ export default function Dashboard() {
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-5">
-              <h2 className="text-xl font-semibold text-slate-900">Selected range</h2>
+              <h2 className="text-xl font-semibold text-slate-900">
+                Selected range
+              </h2>
               <p className="mt-1 text-sm text-slate-500">Quick period context</p>
             </div>
 
             <RangeBlock label="From" value={range.from} />
             <RangeBlock label="To" value={range.to} />
-            <RangeBlock label="Data source" value={data?.sourceLabel || "Magento"} />
+            <RangeBlock
+              label="Data source"
+              value={data?.sourceLabel || apiBaseUrl || "Magento"}
+            />
             <RangeBlock
               label="Last synced at"
               value={formatDateTime(data?.lastSyncedAt)}
@@ -249,8 +324,9 @@ export default function Dashboard() {
           </section>
         </div>
 
-        <div className="mb-6">
+        <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.65fr_0.95fr]">
           <RevenueOverTimeChart data={timeseries} loading={loading} />
+          <StatusBreakdownPanel items={statusBreakdown} loading={loading} />
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.7fr_1fr]">
@@ -288,7 +364,110 @@ function RangeBlock({ label, value }) {
       <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
         {label}
       </div>
-      <div className="mt-2 text-xl font-semibold text-slate-900">{value || "—"}</div>
+      <div className="mt-2 text-xl font-semibold text-slate-900">
+        {value || "—"}
+      </div>
+    </div>
+  );
+}
+
+function StatusBreakdownPanel({ items, loading }) {
+  const safeItems = Array.isArray(items) ? items : [];
+
+  return (
+    <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="mb-5">
+        <h2 className="text-xl font-semibold text-slate-900">
+          Status breakdown
+        </h2>
+        <p className="mt-1 text-sm text-slate-500">
+          Order and revenue contribution by Magento order status
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        {loading ? (
+          <>
+            <StatusBreakdownSkeleton />
+            <StatusBreakdownSkeleton />
+            <StatusBreakdownSkeleton />
+          </>
+        ) : safeItems.length ? (
+          safeItems.map((item) => (
+            <StatusBreakdownRow
+              key={String(item.status).toLowerCase()}
+              status={item.status}
+              orders={item.orders}
+              revenue={item.revenue}
+            />
+          ))
+        ) : (
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
+            No status breakdown data available for the selected period.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function StatusBreakdownRow({ status, orders, revenue }) {
+  return (
+    <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-6">
+      <div className="flex items-center justify-between gap-6">
+        
+        {/* LEFT: STATUS */}
+        <div className="flex-1 min-w-0">
+          <div className="text-[18px] font-semibold text-slate-950">
+            {formatStatusLabel(status)}
+          </div>
+          <div className="text-sm text-slate-500">Order status</div>
+        </div>
+
+        {/* RIGHT: STACKED METRICS */}
+        <div className="flex flex-col items-end gap-2 min-w-[120px]">
+          
+          <div className="text-right">
+            <div className="text-xs text-slate-500">Orders</div>
+            <div className="text-[16px] font-semibold text-slate-950">
+              {formatNumber(orders)}
+            </div>
+          </div>
+
+          <div className="text-right">
+            <div className="text-xs text-slate-500">Revenue</div>
+            <div className="text-[16px] font-semibold text-slate-950">
+              {formatMoney(revenue)}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusBreakdownSkeleton() {
+  return (
+    <div className="animate-pulse rounded-[28px] border border-slate-200 bg-white px-6 py-6">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 flex-1 space-y-3">
+          <div className="h-6 w-32 rounded bg-slate-200" />
+          <div className="h-4 w-24 rounded bg-slate-200" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 sm:gap-8 lg:shrink-0">
+          <div className="space-y-3 lg:text-right">
+            <div className="h-4 w-14 rounded bg-slate-200 lg:ml-auto" />
+            <div className="h-5 w-12 rounded bg-slate-200 lg:ml-auto" />
+          </div>
+
+          <div className="space-y-3 lg:text-right">
+            <div className="h-4 w-16 rounded bg-slate-200 lg:ml-auto" />
+            <div className="h-5 w-20 rounded bg-slate-200 lg:ml-auto" />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
