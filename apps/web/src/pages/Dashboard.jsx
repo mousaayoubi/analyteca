@@ -267,16 +267,26 @@ export default function Dashboard() {
           </div>
         ) : null}
 
-        <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard label="Revenue" value={formatMoney(data?.revenue)} />
           <MetricCard label="Orders" value={formatNumber(data?.orders)} />
           <MetricCard label="AOV" value={formatMoney(data?.aov)} />
           <MetricCard label="Refunds" value={formatMoney(data?.refunds)} />
         </div>
 
-        <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.65fr_0.95fr]">
+        <div className="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-[1.65fr_0.95fr]">
+          <RevenueOverTimeChart data={timeseries} loading={loading} />
+          <StatusBreakdownPanel items={statusBreakdown} loading={loading} />
+        </div>
+
+        <div className="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-[1.7fr_1fr]">
+          <TopProductsTable products={topProducts} loading={loading} />
+          <RevenueByStatusDonut data={revenueByStatus} loading={loading} />
+        </div>
+
+        <div className="grid grid-cols-1 gap-8 xl:grid-cols-[1.65fr_0.95fr]">
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
+            <div className="mb-6">
               <h2 className="text-xl font-semibold text-slate-900">
                 Performance insights
               </h2>
@@ -285,7 +295,7 @@ export default function Dashboard() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
               <InfoCard
                 title="Sync confidence"
                 description={`Last synced at ${formatDateTime(
@@ -304,34 +314,26 @@ export default function Dashboard() {
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-5">
+            <div className="mb-6">
               <h2 className="text-xl font-semibold text-slate-900">
                 Selected range
               </h2>
               <p className="mt-1 text-sm text-slate-500">Quick period context</p>
             </div>
 
-            <RangeBlock label="From" value={range.from} />
-            <RangeBlock label="To" value={range.to} />
-            <RangeBlock
-              label="Data source"
-              value={data?.sourceLabel || apiBaseUrl || "Magento"}
-            />
-            <RangeBlock
-              label="Last synced at"
-              value={formatDateTime(data?.lastSyncedAt)}
-            />
+            <div className="space-y-5">
+              <RangeBlock label="From" value={range.from} />
+              <RangeBlock label="To" value={range.to} />
+              <RangeBlock
+                label="Data source"
+                value={data?.sourceLabel || apiBaseUrl || "Magento"}
+              />
+              <RangeBlock
+                label="Last synced at"
+                value={formatDateTime(data?.lastSyncedAt)}
+              />
+            </div>
           </section>
-        </div>
-
-        <div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.65fr_0.95fr]">
-          <RevenueOverTimeChart data={timeseries} loading={loading} />
-          <StatusBreakdownPanel items={statusBreakdown} loading={loading} />
-        </div>
-
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.7fr_1fr]">
-          <TopProductsTable products={topProducts} loading={loading} />
-          <RevenueByStatusDonut data={revenueByStatus} loading={loading} />
         </div>
       </div>
     </div>
@@ -351,7 +353,7 @@ function MetricCard({ label, value }) {
 
 function InfoCard({ title, description }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
       <div className="text-base font-semibold text-slate-900">{title}</div>
       <div className="mt-2 text-sm leading-6 text-slate-600">{description}</div>
     </div>
@@ -360,7 +362,7 @@ function InfoCard({ title, description }) {
 
 function RangeBlock({ label, value }) {
   return (
-    <div className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 last:mb-0">
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
       <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
         {label}
       </div>
@@ -413,20 +415,16 @@ function StatusBreakdownPanel({ items, loading }) {
 
 function StatusBreakdownRow({ status, orders, revenue }) {
   return (
-    <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-6">
+    <div className="rounded-[28px] border border-slate-200 bg-white px-6 py-6 shadow-sm">
       <div className="flex items-center justify-between gap-6">
-        
-        {/* LEFT: STATUS */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="text-[18px] font-semibold text-slate-950">
             {formatStatusLabel(status)}
           </div>
           <div className="text-sm text-slate-500">Order status</div>
         </div>
 
-        {/* RIGHT: STACKED METRICS */}
-        <div className="flex flex-col items-end gap-2 min-w-[120px]">
-          
+        <div className="flex min-w-[120px] flex-col items-end gap-3">
           <div className="text-right">
             <div className="text-xs text-slate-500">Orders</div>
             <div className="text-[16px] font-semibold text-slate-950">
@@ -440,7 +438,6 @@ function StatusBreakdownRow({ status, orders, revenue }) {
               {formatMoney(revenue)}
             </div>
           </div>
-
         </div>
       </div>
     </div>
@@ -449,22 +446,22 @@ function StatusBreakdownRow({ status, orders, revenue }) {
 
 function StatusBreakdownSkeleton() {
   return (
-    <div className="animate-pulse rounded-[28px] border border-slate-200 bg-white px-6 py-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+    <div className="animate-pulse rounded-[28px] border border-slate-200 bg-white px-6 py-6 shadow-sm">
+      <div className="flex items-center justify-between gap-6">
         <div className="min-w-0 flex-1 space-y-3">
           <div className="h-6 w-32 rounded bg-slate-200" />
           <div className="h-4 w-24 rounded bg-slate-200" />
         </div>
 
-        <div className="grid grid-cols-2 gap-6 sm:gap-8 lg:shrink-0">
-          <div className="space-y-3 lg:text-right">
-            <div className="h-4 w-14 rounded bg-slate-200 lg:ml-auto" />
-            <div className="h-5 w-12 rounded bg-slate-200 lg:ml-auto" />
+        <div className="flex min-w-[120px] flex-col items-end gap-3">
+          <div className="space-y-2 text-right">
+            <div className="ml-auto h-3 w-12 rounded bg-slate-200" />
+            <div className="ml-auto h-5 w-12 rounded bg-slate-200" />
           </div>
 
-          <div className="space-y-3 lg:text-right">
-            <div className="h-4 w-16 rounded bg-slate-200 lg:ml-auto" />
-            <div className="h-5 w-20 rounded bg-slate-200 lg:ml-auto" />
+          <div className="space-y-2 text-right">
+            <div className="ml-auto h-3 w-14 rounded bg-slate-200" />
+            <div className="ml-auto h-5 w-20 rounded bg-slate-200" />
           </div>
         </div>
       </div>
