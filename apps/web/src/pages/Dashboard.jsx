@@ -406,7 +406,7 @@ function PerformanceInsightsSection({ lastSyncedAt }) {
     {
       title: "Revenue-first layout",
       description:
-        "The top fold highlights revenue, order volume, AOV, and refunds exactly like a production analytics dashboard.",
+        "The top fold highlights revenue, order volume, AOV, and refunds.",
       icon: BadgeDollarSign,
       cardBg: "#EFF4FA",
       iconColor: "#2563EB",
