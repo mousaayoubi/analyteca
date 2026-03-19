@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { LogOut, RefreshCw } from "lucide-react";
+import {
+  LogOut,
+  RefreshCw,
+  DollarSign,
+  ShoppingCart,
+  CreditCard,
+  Wallet,
+} from "lucide-react";
 import { fetchSummary, triggerSync } from "../api/metrics";
 import { getApiBaseUrl } from "../api/http";
 import { useAuth } from "../auth/AuthContext";
@@ -268,10 +275,38 @@ export default function Dashboard() {
         ) : null}
 
         <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
-          <MetricCard label="Revenue" value={formatMoney(data?.revenue)} />
-          <MetricCard label="Orders" value={formatNumber(data?.orders)} />
-          <MetricCard label="AOV" value={formatMoney(data?.aov)} />
-          <MetricCard label="Refunds" value={formatMoney(data?.refunds)} />
+          <MetricCard
+            label="Revenue"
+            value={formatMoney(data?.revenue)}
+            description="Total revenue for selected period"
+            icon={DollarSign}
+            iconBgClass="bg-gradient-to-br from-sky-500 to-cyan-500"
+            iconShadowClass="shadow-[0_12px_28px_rgba(6,182,212,0.28)]"
+          />
+          <MetricCard
+            label="Orders"
+            value={formatNumber(data?.orders)}
+            description="Orders captured from Testlicious"
+            icon={ShoppingCart}
+            iconBgClass="bg-gradient-to-br from-sky-500 to-blue-500"
+            iconShadowClass="shadow-[0_12px_28px_rgba(37,99,235,0.28)]"
+          />
+          <MetricCard
+            label="AOV"
+            value={formatMoney(data?.aov)}
+            description="Average order value"
+            icon={CreditCard}
+            iconBgClass="bg-gradient-to-br from-cyan-500 to-sky-500"
+            iconShadowClass="shadow-[0_12px_28px_rgba(14,165,233,0.24)]"
+          />
+          <MetricCard
+            label="Refunds"
+            value={formatMoney(data?.refunds)}
+            description="Refunded amount in selected range"
+            icon={Wallet}
+            iconBgClass="bg-slate-500"
+            iconShadowClass="shadow-[0_12px_28px_rgba(71,85,105,0.24)]"
+          />
         </div>
 
         <div className="mb-8 grid grid-cols-1 gap-8 xl:grid-cols-[1.65fr_0.95fr]">
@@ -340,13 +375,47 @@ export default function Dashboard() {
   );
 }
 
-function MetricCard({ label, value }) {
+function MetricCard({
+  label,
+  value,
+  description,
+  icon: Icon,
+  iconBgClass = "bg-gradient-to-br from-sky-500 to-cyan-500",
+  iconShadowClass = "shadow-[0_12px_28px_rgba(14,165,233,0.24)]",
+}) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="text-sm font-medium text-slate-500">{label}</div>
-      <div className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">
+    <div className="relative overflow-hidden rounded-[28px] border border-slate-200 bg-white px-7 py-7 shadow-sm">
+      
+      {/* Top row */}
+      <div className="flex items-start justify-between">
+        <div className="text-[16px] font-medium text-slate-500">
+          {label}
+        </div>
+
+        {Icon && (
+          <div
+            className={`
+              flex items-center justify-center
+              h-[60px] w-[60px] rounded-[20px]
+              ${iconBgClass} ${iconShadowClass}
+            `}
+          >
+            <Icon className="h-6 w-6 text-white stroke-[2.2]" />
+          </div>
+        )}
+      </div>
+
+      {/* Value */}
+      <div className="mt-6 text-[48px] font-semibold leading-[1.1] tracking-tight text-slate-950">
         {value}
       </div>
+
+      {/* Description */}
+      {description && (
+        <div className="mt-5 max-w-[260px] text-[16px] leading-7 text-slate-500">
+          {description}
+        </div>
+      )}
     </div>
   );
 }
