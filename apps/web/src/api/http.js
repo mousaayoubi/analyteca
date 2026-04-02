@@ -1,5 +1,8 @@
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:3000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+
+export function getApiBaseUrl() {
+  return API_BASE_URL;
+}
 
 export class ApiError extends Error {
   constructor(message, { status, data } = {}) {
@@ -8,10 +11,6 @@ export class ApiError extends Error {
     this.status = status;
     this.data = data;
   }
-}
-
-export function getApiBaseUrl() {
-  return API_BASE_URL;
 }
 
 export async function apiFetch(path, { method = "GET", token, headers, body } = {}) {
@@ -29,8 +28,8 @@ export async function apiFetch(path, { method = "GET", token, headers, body } = 
   });
 
   const text = await res.text();
-
   let data = null;
+
   try {
     data = text ? JSON.parse(text) : null;
   } catch {
@@ -38,10 +37,10 @@ export async function apiFetch(path, { method = "GET", token, headers, body } = 
   }
 
   if (!res.ok) {
-    throw new ApiError(`Request failed (${res.status})`, {
-      status: res.status,
-      data,
-    });
+    throw new ApiError(
+      data?.message || `Request failed with status ${res.status}`,
+      { status: res.status, data }
+    );
   }
 
   return data;

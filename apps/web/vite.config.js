@@ -10,6 +10,6 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: true,
-    allowedHosts: ["analyteca.com"],
+    allowedHosts: ["www.analyteca.com", "analyteca.com"],
   },
 });
