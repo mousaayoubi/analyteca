@@ -159,6 +159,7 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-100">
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
+	  <title>Analyteca | Dashboard</title>
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
             <img
@@ -215,7 +216,7 @@ export default function Dashboard() {
               Commerce analytics
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              Revenue, orders, product mix, and status performance for
+              Sales, orders, product mix, and status performance for
               Testlicious.
             </p>
           </div>
@@ -278,9 +279,9 @@ export default function Dashboard() {
 
         <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-4">
           <MetricCard
-            label="Revenue"
+            label="Sales"
             value={formatMoney(data?.revenue)}
-            description="Total revenue for selected period"
+            description="Total sales for selected period"
             icon={DollarSign}
             iconBgClass="bg-gradient-to-br from-sky-500 to-cyan-500"
             iconShadowClass="shadow-[0_12px_28px_rgba(6,182,212,0.28)]"
@@ -404,9 +405,9 @@ function PerformanceInsightsSection({ lastSyncedAt }) {
       iconColor: "#0B84D8",
     },
     {
-      title: "Revenue-first layout",
+      title: "Sales-first layout",
       description:
-        "The top fold highlights revenue, order volume, AOV, and refunds.",
+        "The top fold highlights sales, order volume, AOV, and refunds.",
       icon: BadgeDollarSign,
       cardBg: "#EFF4FA",
       iconColor: "#2563EB",
@@ -414,7 +415,7 @@ function PerformanceInsightsSection({ lastSyncedAt }) {
     {
       title: "Trend visibility",
       description:
-        "Revenue trend chart makes anomalies, growth, and dips visible at a glance for Testlicious.",
+        "Sales trend chart makes anomalies, growth, and dips visible at a glance for Testlicious.",
       icon: Activity,
       cardBg: "#EEF9FB",
       iconColor: "#0991B1",
@@ -515,7 +516,7 @@ function StatusBreakdownPanel({ items, loading }) {
           Status breakdown
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Order and revenue contribution by Magento order status
+          Order and sales contribution by Magento order status
         </p>
       </div>
 
@@ -565,7 +566,7 @@ function StatusBreakdownRow({ status, orders, revenue }) {
           </div>
 
           <div className="text-right">
-            <div className="text-xs text-slate-500">Revenue</div>
+            <div className="text-xs text-slate-500">Sales</div>
             <div className="text-[16px] font-semibold text-slate-950">
               {formatMoney(revenue)}
             </div>

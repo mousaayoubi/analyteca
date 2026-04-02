@@ -26,10 +26,10 @@ export default function RevenueOverTimeChart({ data = [], loading = false }) {
     <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5">
         <h2 className="text-[28px] font-semibold tracking-tight text-slate-900">
-          Revenue over time
+          Sales over time
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Daily revenue trend for the selected Testlicious date range.
+          Daily sales trend for the selected Testlicious date range.
         </p>
       </div>
 

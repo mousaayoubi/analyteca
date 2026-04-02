@@ -16,7 +16,7 @@ export default function StatusBreakdownCard({
   return (
     <SectionCard
       title="Status breakdown"
-      subtitle="Order and revenue distribution by status"
+      subtitle="Order and sales distribution by status"
     >
       {loading ? (
         <div className="space-y-4">

@@ -34,10 +34,10 @@ export default function RevenueByStatusDonut({ data = [], loading = false }) {
     <section className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm">
       <div className="mb-5">
         <h2 className="text-[28px] font-semibold tracking-tight text-slate-900">
-          Revenue by status
+          Sales by status
         </h2>
         <p className="mt-1 text-sm text-slate-500">
-          Order revenue distribution by status for the selected range.
+          Order sales distribution by status for the selected range.
         </p>
       </div>
 
@@ -54,7 +54,7 @@ export default function RevenueByStatusDonut({ data = [], loading = false }) {
           <div className="relative h-[340px]">
             <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center">
               <div className="text-xs font-medium uppercase tracking-[0.16em] text-slate-400">
-                Total Revenue
+                Total Sales
               </div>
               <div className="mt-1 text-2xl font-semibold tracking-tight text-slate-900">
                 {formatMoney(totalRevenue)}

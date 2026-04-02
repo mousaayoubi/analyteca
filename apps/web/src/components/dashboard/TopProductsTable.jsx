@@ -20,7 +20,7 @@ export default function TopProductsTable({ products = [], loading = false }) {
             Top products
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            Highest revenue products for the selected Testlicious date range.
+            Highest sales products for the selected Testlicious date range.
           </p>
         </div>
         <div className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-500">
@@ -55,7 +55,7 @@ export default function TopProductsTable({ products = [], loading = false }) {
                     Orders
                   </th>
                   <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
-                    Revenue
+                    Sales
                   </th>
                 </tr>
               </thead>
